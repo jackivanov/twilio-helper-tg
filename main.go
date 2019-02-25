@@ -75,6 +75,17 @@ func getFlows() []StudioFlow {
 	return Flows.Flows
 }
 
+// getFlows gets all existing Studio flows
+func getFlowInfo() []StudioFlow {
+	Flows := new(StudioFlows)
+	accountSid := getToken("TWILIO_ACCOUNT_SID")
+	accountToken := getToken("TWILIO_AUTH_TOKEN")
+
+	TwilioGetJson("https://studio.twilio.com/v1/Flows?PageSize=1000&Page=0", accountSid, accountToken, Flows)
+
+	return Flows.Flows
+}
+
 // Twilio http
 func TwilioGetJson(url, accountSid, accountToken string, target interface{}) error {
 	req, _ := http.NewRequest("GET", url, nil)
@@ -83,7 +94,7 @@ func TwilioGetJson(url, accountSid, accountToken string, target interface{}) err
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
-		log.Panic(err)
+		log.Printf("Can't connect to the Twilio server")
 	}
 	defer resp.Body.Close()
 
@@ -106,7 +117,7 @@ func main() {
 
 	bot, err := tgbotapi.NewBotAPI(BotAPIToken)
 	if err != nil {
-		log.Panic(err, ". Bot not found or can not be authenticated")
+		log.Printf(". Bot not found or can not be authenticated")
 	}
 
 	bot.Debug = true
@@ -133,12 +144,16 @@ func main() {
 					msg.Text = "/call (flow sid) (number) - redirect calls in a given flow to a given numner. eg: /call FWf.. +79..\n/flows - get existing flows (name and sid)\n/status - check the status of the bot\n/help - show help message"
 				case "call":
 					args := ArgsToSlice(update.Message.CommandArguments())
-					flow := args[0]
-					to := args[1]
+					if len(args) == 2 {
+						flow := args[0]
+						to := args[1]
 
-					if resp := StudioCallTo(flow, to); resp {
-						m := fmt.Sprint("Redirecting call to ", to, " in flow ", flow)
-						msg.Text = m
+						if resp := StudioCallTo(flow, to); resp {
+							m := fmt.Sprint("Redirectings call to ", to, " in flow ", flow)
+							msg.Text = m
+						}
+					} else {
+						msg.Text = "Error. Exact 2 arguments should be specified"
 					}
 				case "flows":
 					var m string
